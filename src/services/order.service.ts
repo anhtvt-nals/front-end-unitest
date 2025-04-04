@@ -1,9 +1,22 @@
 import { Order } from '../models/order.model';
 import { PaymentService } from './payment.service';
-
+import { CouponService } from './coupon.service';
+import { CoreService } from './core.service';
 
 export class OrderService {
-  constructor(private readonly paymentService: PaymentService) {}
+  constructor(
+    private readonly paymentService: PaymentService,
+    private readonly couponService: CouponService,
+    private readonly coreService: CoreService
+  ) { }
+
+  async createOrder(order: Record<string, any>): Promise<any> {
+    try {
+      return await this.coreService.post('/orders', order);
+    } catch (error) {
+      return null;
+    }
+  }
 
   async process(order: Partial<Order>) {
     if (!order.items?.length) {
@@ -16,13 +29,8 @@ export class OrderService {
 
     let totalPrice = order.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
-    if (totalPrice <= 0) {
-      throw new Error('Total price must be greater than 0');
-    }
-
     if (order.couponId) {
-      const response = await fetch(`https://67eb7353aa794fb3222a4c0e.mockapi.io/coupons/${order.couponId}`)
-      const coupon = await response.json();
+      const coupon = await this.couponService.getCoupon(order.couponId);
 
       if (!coupon) {
         throw new Error('Invalid coupon');
@@ -41,13 +49,11 @@ export class OrderService {
       paymentMethod: this.paymentService.buildPaymentMethod(totalPrice),
     }
 
-    const orderResponse = await fetch('https://67eb7353aa794fb3222a4c0e.mockapi.io/order', {
-      method: 'POST',
-      body: JSON.stringify(orderPayload),
-      headers: { 'Content-Type': 'application/json' }
-    });
-
-    const createdOrder = await orderResponse.json();
+    const createdOrder = await this.createOrder(orderPayload);
+  
+    if (!createdOrder) {
+      throw new Error('Failed to create order');
+    }
 
     this.paymentService.payViaLink(createdOrder);
   }
