@@ -6,15 +6,6 @@ import { CoreService } from './core.service';
 import { Order } from '../models/order.model';
 
 // Define interfaces for better type safety
-interface OrderItem {
-  price: number;
-  quantity: number;
-}
-
-interface Coupon {
-  discount: number;
-}
-
 interface MockPaymentService extends Partial<PaymentService> {
   buildPaymentMethod: Mock;
   payViaLink: Mock;
@@ -194,7 +185,7 @@ describe('OrderService', () => {
       expect(paymentService.buildPaymentMethod).toHaveBeenCalledWith(0);
     });
 
-    it('should process order error when create order', async () => {
+    it('should process order error when create order null', async () => {
       const orderWithCoupon: Partial<Order> = {
         items: [
           {
@@ -210,6 +201,27 @@ describe('OrderService', () => {
       couponService.getCoupon.mockResolvedValue({ discount: 50 });
       paymentService.buildPaymentMethod.mockReturnValue('CREDIT');
       await expect(orderService.process(orderWithCoupon)).rejects.toThrow('Failed to create order');
+    });
+
+    it('should process order when create order success', async () => {
+      const orderWithCoupon: Partial<Order> = {
+        items: [
+          {
+            id: '1',
+            productId: 'product1',
+            price: 100,
+            quantity: 1,
+          },
+        ],
+        couponId: 'FULL_DISCOUNT',
+      };
+      orderService.createOrder = vi.fn().mockResolvedValue({ id: '123', ...orderWithCoupon });
+      couponService.getCoupon.mockResolvedValue({ discount: 50 });
+      paymentService.buildPaymentMethod.mockReturnValue('CREDIT');
+      await orderService.process(orderWithCoupon);
+
+      expect(paymentService.buildPaymentMethod).toHaveBeenCalledWith(50);
+      expect(paymentService.payViaLink).toHaveBeenCalledWith({ id: '123', ...orderWithCoupon });
     });
 
   });
