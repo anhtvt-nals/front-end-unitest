@@ -19,8 +19,6 @@ describe('CouponService', () => {
       const mockCoupon = { id: '123', code: 'TEST10' };
       coreService.get = vi.fn<(url: string) => Promise<any>>().mockResolvedValue(mockCoupon);
       const result = await couponService.getCoupon('123');
-      console.log(result);
-      
       expect(coreService.get).toHaveBeenCalledWith('/coupons/123');
       expect(result).toEqual(mockCoupon);
     });
